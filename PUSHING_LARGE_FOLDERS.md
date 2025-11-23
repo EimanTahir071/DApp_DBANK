@@ -147,7 +147,13 @@ Follow [Method 2](#method-2-using-git-lfs-for-large-files--50mb) above.
 If you already committed large files:
 ```bash
 # Step 1: Find large files in your repository
-# This command lists the 10 largest files
+# Lists the 10 largest files in the repository
+# - git rev-list --objects --all: Lists all objects in the repository
+# - git cat-file --batch-check: Gets object type, name, size, and path
+# - sed -n 's/^blob //p': Filters to show only blob (file) objects
+# - sort --numeric-sort --key=2: Sorts by file size
+# - tail -n 10: Shows the 10 largest files
+
 git rev-list --objects --all | \
   git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' | \
   sed -n 's/^blob //p' | \
@@ -158,23 +164,38 @@ git rev-list --objects --all | \
 cp -r .git .git-backup
 
 # Step 3: Remove the large file from history
-# Replace 'path/to/large-file' with the actual path
-git filter-branch --force --index-filter \
-  "git rm --cached --ignore-unmatch path/to/large-file" \
-  --prune-empty --tag-name-filter cat -- --all
+# Replace 'path/to/large-file' with the actual path from Step 1
+# Parameters explained:
+# - --force: Overwrites existing backup
+# - --index-filter: Runs command on repository index
+# - git rm --cached --ignore-unmatch: Removes file without failing if missing
+# - --prune-empty: Removes commits that become empty
+# - --tag-name-filter cat: Rewrites tags to point to new commits
+# - -- --all: Processes all branches and tags
+
+git filter-branch \
+  --force \
+  --index-filter "git rm --cached --ignore-unmatch path/to/large-file" \
+  --prune-empty \
+  --tag-name-filter cat \
+  -- --all
 
 # Step 4: Force push (will overwrite remote history!)
 # WARNING: This affects all collaborators
 git push origin --force --all
 ```
 
-**Note**: Consider using `git-filter-repo` (a modern alternative) instead:
+**Note**: Consider using `git-filter-repo` (a modern, faster alternative) instead:
 ```bash
 # Install git-filter-repo
 pip install git-filter-repo
 
-# Remove large file
-git filter-repo --path path/to/large-file --invert-paths
+# Remove large file from history
+# - --path: Specifies the file path to filter
+# - --invert-paths: Inverts the filter (removes instead of keeps)
+git filter-repo \
+  --path path/to/large-file \
+  --invert-paths
 ```
 
 ### Problem: Push is Too Slow or Fails
