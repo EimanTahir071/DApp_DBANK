@@ -141,18 +141,40 @@ git push -u origin main
 Follow [Method 2](#method-2-using-git-lfs-for-large-files--50mb) above.
 
 **Solution 2: Remove large files from history**
+
+⚠️ **WARNING**: This method rewrites Git history and can cause data loss. Create a backup before proceeding!
+
 If you already committed large files:
 ```bash
-# Find large files
-git rev-list --objects --all | git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' | sed -n 's/^blob //p' | sort --numeric-sort --key=2 | tail -n 10
+# Step 1: Find large files in your repository
+# This command lists the 10 largest files
+git rev-list --objects --all | \
+  git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' | \
+  sed -n 's/^blob //p' | \
+  sort --numeric-sort --key=2 | \
+  tail -n 10
 
-# Remove from history (use with caution!)
+# Step 2: BACKUP YOUR REPOSITORY FIRST!
+cp -r .git .git-backup
+
+# Step 3: Remove the large file from history
+# Replace 'path/to/large-file' with the actual path
 git filter-branch --force --index-filter \
   "git rm --cached --ignore-unmatch path/to/large-file" \
   --prune-empty --tag-name-filter cat -- --all
 
-# Force push
+# Step 4: Force push (will overwrite remote history!)
+# WARNING: This affects all collaborators
 git push origin --force --all
+```
+
+**Note**: Consider using `git-filter-repo` (a modern alternative) instead:
+```bash
+# Install git-filter-repo
+pip install git-filter-repo
+
+# Remove large file
+git filter-repo --path path/to/large-file --invert-paths
 ```
 
 ### Problem: Push is Too Slow or Fails
